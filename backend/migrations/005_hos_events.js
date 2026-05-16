@@ -102,8 +102,8 @@ exports.up = async (knex) => {
     // ── Record Metadata ─────────────────────────────────────────────────
     // Monotonically increasing per driver per day — used in ELD output file
     t.integer('sequence_id').notNullable().defaultTo(1);
-    t.char('record_origin', 1).notNullable().defaultTo('1');
-    t.char('record_status', 1).notNullable().defaultTo('1');
+    t.string('record_origin', 1).notNullable().defaultTo('1');
+    t.string('record_status', 1).notNullable().defaultTo('1');
 
     // ── Edit Chain (for FMCSA edit audit trail) ─────────────────────────
     // If this row is an edit, points to the row it replaces
@@ -117,11 +117,11 @@ exports.up = async (knex) => {
 
     // ── Malfunctions & Diagnostics (event_type = 5) ─────────────────────
     // Malfunction codes: P E T L R S O
-    t.char('malfunction_code', 1);
+    t.string('malfunction_code', 1);
     // Diagnostic codes: 1 2 3 4 5 6
     t.string('data_diagnostic_code', 2);
     // '1' = malfunction, '2' = data diagnostic
-    t.char('malfunction_indicator', 1);
+    t.string('malfunction_indicator', 1);
 
     // ── Annotations ─────────────────────────────────────────────────────
     // Driver note (e.g. "Adverse driving conditions — unexpected snowstorm")
