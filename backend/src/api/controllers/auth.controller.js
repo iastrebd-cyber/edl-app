@@ -1,14 +1,14 @@
 'use strict';
 
 const bcrypt = require('bcrypt');
-const db     = require('../config/db');
+const db = require('../../config/db');
 const {
   signAccessToken,
   signRefreshToken,
   generateRefreshToken,
   verifyRefreshToken,
   REFRESH_TTL_MS,
-} = require('../utils/jwt');
+} = require('../../utils/jwt');
 
 /**
  * src/api/controllers/auth.controller.js

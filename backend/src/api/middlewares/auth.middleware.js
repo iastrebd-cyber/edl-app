@@ -1,6 +1,6 @@
 'use strict';
 
-const { verifyAccessToken } = require('../utils/jwt');
+const { verifyAccessToken } = require('../../utils/jwt');
 
 /**
  * src/api/middlewares/auth.middleware.js
