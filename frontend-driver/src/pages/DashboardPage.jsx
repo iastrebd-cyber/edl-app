@@ -1,11 +1,5 @@
 /**
- * src/pages/DashboardPage.jsx
- *
- * Main screen the driver sees after login:
- *   - Current status indicator
- *   - Three HOS clocks
- *   - Status change panel
- *   - Quick links to Logbook, DVIR, DOT Transfer
+ * C:\Users\RegenU3\eld-app\frontend-driver\src\pages\DashboardPage.jsx
  */
 
 import { useTranslation } from 'react-i18next';
@@ -14,6 +8,7 @@ import { useAuth }        from '../store/AuthContext';
 import { useHOS }         from '../store/HOSContext';
 import HOSClocks          from '../components/hos/HOSClocks';
 import StatusChangePanel  from '../components/hos/StatusChangePanel';
+import OBDPanel           from '../components/obd/OBDPanel';
 
 const STATUS_LABELS = {
   OFF: 'Off Duty',
@@ -65,7 +60,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Current status badge */}
         <div style={{
           padding: '6px 14px',
           borderRadius: 20,
@@ -80,6 +74,7 @@ export default function DashboardPage() {
       </div>
 
       <div style={{ padding: 16 }}>
+
         {/* Offline banner */}
         {!isOnline && (
           <div style={{
@@ -88,7 +83,7 @@ export default function DashboardPage() {
             borderRadius: 8, color: '#fde68a', fontSize: 13,
             display: 'flex', justifyContent: 'space-between',
           }}>
-            <span>📵 Offline — events queued locally</span>
+            <span>🔵 Offline — events queued locally</span>
             {pendingCount > 0 && (
               <span style={{ fontWeight: 700 }}>{pendingCount} pending</span>
             )}
@@ -103,6 +98,7 @@ export default function DashboardPage() {
             ✓ Back online — syncing {pendingCount} event(s)...
           </div>
         )}
+
         {/* HOS Clocks */}
         <section style={{ marginBottom: 20 }}>
           <h2 style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600,
@@ -129,6 +125,16 @@ export default function DashboardPage() {
           <StatusChangePanel currentStatus={currentStatus} />
         </section>
 
+        {/* ── OBD / ECM Panel (4.1) ── */}
+        <section style={{ marginBottom: 20 }}>
+          <h2 style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            marginBottom: 10 }}>
+            Engine Data
+          </h2>
+          <OBDPanel />
+        </section>
+
         {/* Quick nav */}
         <section>
           <h2 style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600,
@@ -138,10 +144,10 @@ export default function DashboardPage() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
-              { icon: '📋', label: t('logbook'),    path: '/logbook'  },
-              { icon: '🔧', label: t('dvir'),        path: '/dvir'     },
-              { icon: '📡', label: t('dot_transfer'), path: '/transfer' },
-              { icon: '⚠️', label: t('violations'),  path: '/violations'},
+              { icon: '📋', label: t('logbook'),     path: '/logbook'   },
+              { icon: '🔧', label: t('dvir'),         path: '/dvir'      },
+              { icon: '📡', label: t('dot_transfer'), path: '/transfer'  },
+              { icon: '⚠️', label: t('violations'),   path: '/violations'},
             ].map(({ icon, label, path }) => (
               <button
                 key={path}
@@ -181,6 +187,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-// Note: offline indicator is rendered inside the existing component
-// The useHOS hook now provides isOnline and pendingCount
