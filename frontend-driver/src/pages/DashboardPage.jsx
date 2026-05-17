@@ -32,7 +32,7 @@ const STATUS_COLORS = {
 export default function DashboardPage() {
   const { t }                        = useTranslation();
   const { user, driver, logout }     = useAuth();
-  const { hos, session, loading }    = useHOS();
+  const { hos, session, loading, isOnline, pendingCount } = useHOS();
   const navigate                     = useNavigate();
 
   const currentStatus = driver?.current_status || 'OFF';
@@ -80,6 +80,29 @@ export default function DashboardPage() {
       </div>
 
       <div style={{ padding: 16 }}>
+        {/* Offline banner */}
+        {!isOnline && (
+          <div style={{
+            padding: '8px 12px', marginBottom: 12,
+            background: '#78350f', border: '1px solid #f59e0b',
+            borderRadius: 8, color: '#fde68a', fontSize: 13,
+            display: 'flex', justifyContent: 'space-between',
+          }}>
+            <span>📵 Offline — events queued locally</span>
+            {pendingCount > 0 && (
+              <span style={{ fontWeight: 700 }}>{pendingCount} pending</span>
+            )}
+          </div>
+        )}
+        {isOnline && pendingCount > 0 && (
+          <div style={{
+            padding: '8px 12px', marginBottom: 12,
+            background: '#052e16', border: '1px solid #22c55e',
+            borderRadius: 8, color: '#86efac', fontSize: 13,
+          }}>
+            ✓ Back online — syncing {pendingCount} event(s)...
+          </div>
+        )}
         {/* HOS Clocks */}
         <section style={{ marginBottom: 20 }}>
           <h2 style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600,
@@ -158,3 +181,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+// Note: offline indicator is rendered inside the existing component
+// The useHOS hook now provides isOnline and pendingCount
