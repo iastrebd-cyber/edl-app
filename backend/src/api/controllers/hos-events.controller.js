@@ -1,7 +1,8 @@
 'use strict';
 
-const db                  = require('../../config/db')
+const db                  = require('../../config/db');
 const { calculateHOS }    = require('../../services/hos-calculator.service');
+const violationDetector   = require('../../services/violation-detector.service');
 
 /**
  * src/api/controllers/hos-events.controller.js
@@ -143,13 +144,11 @@ async function createEvent(req, res) {
         });
     }
 
-    // 7. Run HOS Calculator and detect violations
-    const hosResult = await runHOSCheck(session.driver_id, driver.hos_cycle);
-
-    // 8. Save any new violations to DB
-    if (hosResult.violations.length > 0) {
-      await saveViolations(hosResult.violations, session.driver_id, session_id, newEvent.id);
-    }
+    // 7. Run violation detector (calculates HOS + saves violations)
+    const detectionResult = await violationDetector.detectAndSave(
+      session.driver_id, session_id, newEvent.id, driver.hos_cycle
+    );
+    const hosResult = detectionResult.hos;
 
     // 9. Return the new event + current HOS status
     return res.status(201).json({

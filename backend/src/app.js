@@ -51,13 +51,15 @@ app.use(rateLimit({
 // Routes
 // ─────────────────────────────────────────────────────────────
 
-const authRoutes      = require('./api/routes/auth.routes');
-const hosEventsRoutes = require('./api/routes/hos-events.routes');
-const sessionsRoutes  = require('./api/routes/sessions.routes');
+const authRoutes       = require('./api/routes/auth.routes');
+const hosEventsRoutes  = require('./api/routes/hos-events.routes');
+const sessionsRoutes   = require('./api/routes/sessions.routes');
+const violationsRoutes = require('./api/routes/violations.routes');
 
 app.use('/api/auth',       authRoutes);
 app.use('/api/hos-events', hosEventsRoutes);
 app.use('/api/sessions',   sessionsRoutes);
+app.use('/api/violations', violationsRoutes);
 
 // Health check — used by Docker, load balancer, monitoring
 app.get('/health', (req, res) => {
