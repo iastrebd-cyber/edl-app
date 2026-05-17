@@ -60,6 +60,7 @@ app.use('/api/auth',       authRoutes);
 app.use('/api/hos-events', hosEventsRoutes);
 app.use('/api/sessions',   sessionsRoutes);
 app.use('/api/violations', violationsRoutes);
+app.use('/api/dvir',       require('./api/routes/dvir.routes'));
 
 // Health check — used by Docker, load balancer, monitoring
 app.get('/health', (req, res) => {

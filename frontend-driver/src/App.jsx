@@ -9,6 +9,7 @@ import './i18n/index.js';
 import LoginPage     from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import LogbookPage   from './pages/LogbookPage';
+import DVIRPage      from './pages/DVIRPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -41,7 +42,7 @@ function AppRoutes() {
           </HOSProvider>
         </PrivateRoute>
       } />
-      <Route path="/dvir"       element={<PrivateRoute><div style={{color:'#fff',padding:20}}>DVIR — coming soon</div></PrivateRoute>} />
+      <Route path="/dvir" element={<PrivateRoute><HOSProvider><DVIRPage /></HOSProvider></PrivateRoute>} />
       <Route path="/transfer"   element={<PrivateRoute><div style={{color:'#fff',padding:20}}>DOT Transfer — coming soon</div></PrivateRoute>} />
       <Route path="/violations" element={<PrivateRoute><div style={{color:'#fff',padding:20}}>Violations — coming soon</div></PrivateRoute>} />
       <Route path="*"           element={<Navigate to="/" replace />} />
