@@ -7,16 +7,12 @@ const helmet     = require('helmet');
 const cors       = require('cors');
 const rateLimit  = require('express-rate-limit');
 
-// ─────────────────────────────────────────────────────────────
-// App
-// ─────────────────────────────────────────────────────────────
-
 const app = express();
 
-// ─── Security headers (helmet defaults are good) ─────────────
+// ─── Security headers ─────────────────────────────────────────
 app.use(helmet());
 
-// ─── CORS ────────────────────────────────────────────────────
+// ─── CORS ─────────────────────────────────────────────────────
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
@@ -24,7 +20,6 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error(`CORS: origin ${origin} not allowed`));
@@ -38,10 +33,10 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 
-// ─── Global rate limit (safety net) ──────────────────────────
+// ─── Rate limit ───────────────────────────────────────────────
 app.use(rateLimit({
-  windowMs: 60 * 1000,   // 1 minute
-  max:      300,          // 300 req/min per IP — generous for legitimate use
+  windowMs: 60 * 1000,
+  max:      300,
   standardHeaders: true,
   legacyHeaders:   false,
   message: { error: 'TOO_MANY_REQUESTS' },
@@ -56,13 +51,15 @@ const hosEventsRoutes  = require('./api/routes/hos-events.routes');
 const sessionsRoutes   = require('./api/routes/sessions.routes');
 const violationsRoutes = require('./api/routes/violations.routes');
 
-app.use('/api/auth',       authRoutes);
-app.use('/api/hos-events', hosEventsRoutes);
-app.use('/api/sessions',   sessionsRoutes);
-app.use('/api/violations', violationsRoutes);
-app.use('/api/dvir',       require('./api/routes/dvir.routes'));
+app.use('/api/auth',         authRoutes);
+app.use('/api/hos-events',   hosEventsRoutes);
+app.use('/api/sessions',     sessionsRoutes);
+app.use('/api/violations',   violationsRoutes);
+app.use('/api/dvir',         require('./api/routes/dvir.routes'));
+app.use('/api/dot-transfer', require('./api/routes/dotTransfer'));
+app.use('/api/ws',           require('./api/routes/ws.routes'));   // ← 3.1
 
-// Health check — used by Docker, load balancer, monitoring
+// ─── Health check ─────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({
     status:  'ok',
@@ -72,11 +69,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────
-// Error handlers
-// ─────────────────────────────────────────────────────────────
-
-// 404 — route not found
+// ─── 404 ──────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     error:   'NOT_FOUND',
@@ -84,16 +77,13 @@ app.use((req, res) => {
   });
 });
 
-// 500 — unhandled errors
+// ─── 500 ──────────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err);
-
-  // CORS error
   if (err.message && err.message.startsWith('CORS:')) {
     return res.status(403).json({ error: 'CORS_ERROR', message: err.message });
   }
-
   res.status(500).json({
     error:   'INTERNAL_SERVER_ERROR',
     message: process.env.NODE_ENV === 'production'
