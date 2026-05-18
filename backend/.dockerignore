@@ -1,0 +1,6 @@
+# C:\Users\RegenU3\eld-app\backend\.dockerignore
+node_modules
+.env
+.env.*
+*.log
+.git

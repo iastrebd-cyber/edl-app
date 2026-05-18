@@ -1,0 +1,7 @@
+# C:\Users\RegenU3\eld-app\frontend-driver\.dockerignore
+# C:\Users\RegenU3\eld-app\frontend-dispatcher\.dockerignore
+node_modules
+dist
+.env
+*.log
+.git
