@@ -1,17 +1,14 @@
-# C:\Users\RegenU3\eld-app\docker-compose.yml
-
 version: '3.9'
 
 services:
 
-  # ── PostgreSQL ───────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: eld_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       eld_dev
-      POSTGRES_USER:     postgres
+      POSTGRES_DB: eld_dev
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -23,7 +20,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Backend ──────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -34,18 +30,18 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      NODE_ENV:              production
-      PORT:                  3000
-      DB_HOST:               postgres
-      DB_PORT:               5432
-      DB_NAME:               eld_dev
-      DB_USER:               postgres
-      DB_PASSWORD:           ${DB_PASSWORD}
-      JWT_ACCESS_SECRET:     ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET:    ${JWT_REFRESH_SECRET}
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: eld_dev
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_ACCESS_EXPIRES_IN: 15m
-      JWT_REFRESH_EXPIRES_IN:30d
-      CORS_ORIGINS:          ${CORS_ORIGINS}
+      JWT_REFRESH_EXPIRES_IN: 30d
+      CORS_ORIGINS: "http://localhost:8080,http://localhost:8081,http://localhost:5173,http://localhost:5174,http://localhost:5175"
     ports:
       - "3000:3000"
     healthcheck:
@@ -54,7 +50,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # ── Driver App ───────────────────────────────────────────────────────
   frontend-driver:
     build:
       context: ./frontend-driver
@@ -67,7 +62,6 @@ services:
     ports:
       - "8080:80"
 
-  # ── Dispatcher App ───────────────────────────────────────────────────
   frontend-dispatcher:
     build:
       context: ./frontend-dispatcher
