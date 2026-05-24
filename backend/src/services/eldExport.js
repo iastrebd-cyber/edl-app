@@ -73,17 +73,21 @@ async function buildELDOutputFile(opts) {
   );
 
   /* ── 3. Fetch DVIR records ── */
+  // Bug fix: use actual column names from migration 006
+  //   created_at      (not inspection_datetime — column doesn't exist)
+  //   defects         (JSONB array, not defects_description)
+  //   report_type     (not inspection_type)
   const dvirs = await db('dvir_reports')
     .where('driver_id', driverProfile?.driver_id)
     .whereBetween(
-      db.raw('DATE(inspection_datetime AT TIME ZONE \'UTC\')'),
+      db.raw('DATE(created_at AT TIME ZONE \'UTC\')'),
       [date_from, date_to]
     )
     .select(
-      'inspection_datetime', 'vehicle_id',
-      'defects_found', 'defects_description',
+      'created_at', 'vehicle_id',
+      'defects_found', 'defects',
       'driver_signature', 'mechanic_signature',
-      'inspection_type',
+      'report_type',
     )
     .catch(() => []);  // table may not exist yet
 
@@ -136,12 +140,19 @@ async function buildELDOutputFile(opts) {
 
   /* Section 3: DVIR Records */
   for (const d of dvirs) {
+    // defects is a JSONB array: [{component, description, severity}, ...]
+    const defectsList = Array.isArray(d.defects) ? d.defects : [];
+    const defectsDesc = defectsList
+      .map(x => [x.component, x.description].filter(Boolean).join(': '))
+      .join('; ')
+      .replace(/\|/g, ';');   // pipe is the field separator — must escape
+
     lines.push([
       'DVIR',
-      new Date(d.inspection_datetime).toISOString().split('T')[0],
-      d.inspection_type  || 'pre',
-      d.defects_found ? '1' : '0',
-      (d.defects_description || '').replace(/\|/g, ';'),
+      new Date(d.created_at).toISOString().split('T')[0],
+      d.report_type        || 'pre',
+      d.defects_found      ? '1' : '0',
+      defectsDesc,
       d.driver_signature   ? '1' : '0',
       d.mechanic_signature ? '1' : '0',
     ].join('|'));

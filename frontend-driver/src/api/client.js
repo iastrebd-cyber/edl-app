@@ -145,4 +145,19 @@ export const violationsAPI = {
     api.get(`/violations/driver/${driverId}`),
 };
 
+// ── DVIR endpoints ────────────────────────────────────────────
+export const dvirAPI = {
+  /** Submit a new DVIR (pre/post/roadside). */
+  submit:           (data)      => api.post('/dvir', data),
+  /** Get DVIR history for a driver. */
+  getHistory:       (driverId)  => api.get(`/dvir/driver/${driverId}`),
+  /**
+   * Check whether the driver has completed a pre-trip DVIR today.
+   * @param {string} [sessionId] – optional current session UUID
+   * @returns {{ completed: boolean, safe_to_operate: boolean|null, report: object|null }}
+   */
+  checkPretrip:     (sessionId) =>
+    api.get('/dvir/pretrip-status', { params: sessionId ? { session_id: sessionId } : {} }),
+};
+
 export default api;

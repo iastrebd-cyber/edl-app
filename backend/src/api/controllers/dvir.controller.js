@@ -54,4 +54,51 @@ async function getDriverDVIR(req, res) {
   }
 }
 
-module.exports = { submitDVIR, getDriverDVIR };
+/**
+ * GET /api/dvir/pretrip-status?session_id=<uuid>
+ *
+ * Returns whether the driver has completed a pre-trip DVIR today.
+ * Used by the frontend to block switching to Driving status
+ * until a pre-trip inspection is on record.
+ *
+ * Response:
+ *   { completed: bool, safe_to_operate: bool|null, report: dvir_report|null }
+ */
+async function checkPretrip(req, res) {
+  try {
+    const driver = await db('drivers').where({ user_id: req.user.id }).first();
+    if (!driver) return res.status(403).json({ error: 'NOT_A_DRIVER' });
+
+    const { session_id } = req.query;
+    let report = null;
+
+    if (session_id) {
+      // Prefer lookup by session if caller provides it
+      report = await db('dvir_reports')
+        .where({ driver_id: driver.id, report_type: 'pre', session_id })
+        .orderBy('created_at', 'desc')
+        .first();
+    }
+
+    // Fall back to any pre-trip DVIR created today (home timezone-agnostic: use UTC date)
+    if (!report) {
+      const todayUtc = new Date().toISOString().slice(0, 10);
+      report = await db('dvir_reports')
+        .where({ driver_id: driver.id, report_type: 'pre' })
+        .where(db.raw('DATE(created_at AT TIME ZONE \'UTC\')', []), todayUtc)
+        .orderBy('created_at', 'desc')
+        .first();
+    }
+
+    return res.json({
+      completed:       !!report,
+      safe_to_operate: report ? report.safe_to_operate : null,
+      report:          report || null,
+    });
+  } catch (err) {
+    console.error('[dvir.checkPretrip]', err);
+    return res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
+  }
+}
+
+module.exports = { submitDVIR, getDriverDVIR, checkPretrip };

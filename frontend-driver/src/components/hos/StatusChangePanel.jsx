@@ -9,7 +9,8 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useHOS } from '../../store/HOSContext';
+import { useNavigate }    from 'react-router-dom';
+import { useHOS }         from '../../store/HOSContext';
 
 const STATUSES = [
   { code: '1', key: 'off_duty',      label: 'OFF', color: '#64748b', bg: '#1e293b' },
@@ -23,8 +24,9 @@ const CURRENT_STATUS_MAP = {
 };
 
 export default function StatusChangePanel({ currentStatus }) {
-  const { t }         = useTranslation();
-  const { changeStatus, refreshHOS } = useHOS();
+  const { t }          = useTranslation();
+  const navigate       = useNavigate();
+  const { changeStatus, refreshHOS, pretripStatus, checkPretrip, session } = useHOS();
 
   const [pending,    setPending]    = useState(null);   // status being confirmed
   const [isPC,       setIsPC]       = useState(false);
@@ -50,6 +52,30 @@ export default function StatusChangePanel({ currentStatus }) {
     setError(null);
 
     try {
+      /* ── Pre-trip DVIR gate (FMCSA §396.11) ──────────────────────────
+       * Switching to Driving (code 3) requires a completed pre-trip DVIR.
+       * We re-fetch the status here in case it was completed after page load.
+       */
+      if (pending.code === '3') {
+        let status = pretripStatus;
+        // Re-check if not yet loaded or if session just started
+        if (!status) {
+          status = await checkPretrip(session?.id);
+        }
+
+        if (status && !status.completed) {
+          setError('Pre-trip inspection required before driving (FMCSA §396.11).');
+          setSubmitting(false);
+          return;
+        }
+
+        if (status?.completed && status.safe_to_operate === false) {
+          setError('Vehicle marked OUT OF SERVICE in pre-trip DVIR. Cannot start driving.');
+          setSubmitting(false);
+          return;
+        }
+      }
+
       // Get GPS location
       let lat = null, lon = null;
       try {
@@ -136,6 +162,59 @@ export default function StatusChangePanel({ currentStatus }) {
               {pending.label} — {t(pending.key)}
             </span>
           </div>
+
+          {/* ── Pre-trip DVIR warning (shown only for DRIVING) ── */}
+          {pending.code === '3' && pretripStatus !== null && !pretripStatus.completed && (
+            <div style={{
+              padding: '10px 12px',
+              marginBottom: 10,
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid #ef4444',
+              borderRadius: 8,
+              fontSize: 12,
+              color: '#fca5a5',
+            }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                ⚠ Pre-trip inspection not completed
+              </div>
+              <div style={{ marginBottom: 8, lineHeight: 1.4 }}>
+                FMCSA §396.11 requires a pre-trip DVIR before each trip.
+              </div>
+              <button
+                onClick={() => navigate('/dvir')}
+                style={{
+                  padding: '6px 14px',
+                  background: '#ef4444',
+                  border: 'none',
+                  borderRadius: 6,
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                Complete Pre-Trip DVIR →
+              </button>
+            </div>
+          )}
+
+          {/* ── Out-of-service vehicle warning ── */}
+          {pending.code === '3' && pretripStatus?.completed && pretripStatus.safe_to_operate === false && (
+            <div style={{
+              padding: '10px 12px',
+              marginBottom: 10,
+              background: 'rgba(239,68,68,0.12)',
+              border: '2px solid #ef4444',
+              borderRadius: 8,
+              fontSize: 12,
+              color: '#fca5a5',
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
+                🚫 Vehicle is OUT OF SERVICE
+              </div>
+              <div>Pre-trip DVIR marked vehicle unsafe to operate.</div>
+            </div>
+          )}
 
           {/* PC toggle (only for OFF) */}
           {pending.code === '1' && (

@@ -7,7 +7,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { hosAPI, sessionsAPI } from '../api/client';
+import { hosAPI, sessionsAPI, dvirAPI } from '../api/client';
 import { useAuth }             from './AuthContext';
 import { queueEvent, cacheSession, cacheEvents } from '../utils/offlineDB';
 import { flush }               from '../utils/syncQueue';
@@ -18,14 +18,37 @@ const POLL_INTERVAL_MS = 60 * 1000;
 export function HOSProvider({ children }) {
   const { driver } = useAuth();
 
-  const [hos,        setHos]        = useState(null);
-  const [session,    setSession]    = useState(null);
-  const [isOnline,   setIsOnline]   = useState(navigator.onLine);
+  const [hos,          setHos]          = useState(null);
+  const [session,      setSession]      = useState(null);
+  const [isOnline,     setIsOnline]     = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState(null);
+
+  /**
+   * pretripStatus — result of the most recent /dvir/pretrip-status call.
+   * null  = not checked yet
+   * { completed: bool, safe_to_operate: bool|null, report: obj|null }
+   */
+  const [pretripStatus, setPretripStatus] = useState(null);
 
   const pollTimer = useRef(null);
+
+  /**
+   * Check pre-trip DVIR status for today's session.
+   * Silently fails if offline — the StatusChangePanel will re-try on confirm.
+   */
+  const checkPretrip = useCallback(async (sessionId) => {
+    try {
+      const { data } = await dvirAPI.checkPretrip(sessionId);
+      setPretripStatus(data);
+      return data;
+    } catch (err) {
+      // Offline or server error — don't block the UI, but keep status as unknown
+      console.warn('[hos] checkPretrip failed (offline?):', err.message);
+      return null;
+    }
+  }, []);
 
   const loadSession = useCallback(async () => {
     if (!driver) return;
@@ -111,16 +134,21 @@ export function HOSProvider({ children }) {
 
   useEffect(() => {
     if (!driver) return;
-    loadSession().then(() => refreshHOS());
+    loadSession().then((sess) => {
+      refreshHOS();
+      // Check pre-trip DVIR after session is loaded
+      if (sess?.id) checkPretrip(sess.id);
+    });
     pollTimer.current = setInterval(refreshHOS, POLL_INTERVAL_MS);
     return () => clearInterval(pollTimer.current);
-  }, [driver, loadSession, refreshHOS]);
+  }, [driver, loadSession, refreshHOS, checkPretrip]);
 
   return (
     <HOSContext.Provider value={{
       hos, session, loading, error,
       isOnline, pendingCount,
-      changeStatus, refreshHOS, loadSession,
+      pretripStatus,
+      changeStatus, refreshHOS, loadSession, checkPretrip,
     }}>
       {children}
     </HOSContext.Provider>
