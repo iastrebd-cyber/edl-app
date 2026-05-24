@@ -12,7 +12,7 @@ async function submitDVIR(req, res) {
   const {
     report_type, defects, defects_found, safe_to_operate,
     driver_signature, driver_signed_at, session_id,
-    latitude, longitude,
+    latitude, longitude, odometer,
   } = req.body;
 
   try {
@@ -27,6 +27,7 @@ async function submitDVIR(req, res) {
       report_type:      report_type || 'pre',
       latitude:         latitude    || null,
       longitude:        longitude   || null,
+      odometer:         odometer ?? null,
       defects:          JSON.stringify(defects || []),
       defects_found:    defects_found || false,
       safe_to_operate:  safe_to_operate !== false,
