@@ -1,189 +1,284 @@
 /**
  * C:\Users\RegenU3\eld-app\frontend-driver\src\pages\DashboardPage.jsx
+ *
+ * v2 — Cybernetic redesign
+ *   • HOSHero как главный визуальный акцент
+ *   • HOSClocks переехали внутрь HOSHero (compact rings)
+ *   • Статус-переключатель с glow-эффектом
  */
 
 import { useTranslation } from 'react-i18next';
 import { useNavigate }    from 'react-router-dom';
 import { useAuth }        from '../store/AuthContext';
 import { useHOS }         from '../store/HOSContext';
+import HOSHero            from '../components/hos/HOSHero';
 import HOSClocks          from '../components/hos/HOSClocks';
 import StatusChangePanel  from '../components/hos/StatusChangePanel';
 import OBDPanel           from '../components/obd/OBDPanel';
 
-const STATUS_LABELS = {
-  OFF: 'Off Duty',
-  SB:  'Sleeper Berth',
-  D:   'Driving',
-  ON:  'On Duty',
+const STATUS_COLORS = {
+  OFF: 'var(--status-off)',
+  SB:  'var(--status-sb)',
+  D:   'var(--status-driving)',
+  ON:  'var(--status-on)',
 };
 
-const STATUS_COLORS = {
-  OFF: '#64748b',
-  SB:  '#6366f1',
-  D:   '#22c55e',
-  ON:  '#f59e0b',
+const STATUS_LABELS = {
+  OFF: 'OFF DUTY',
+  SB:  'SLEEPER',
+  D:   'DRIVING',
+  ON:  'ON DUTY',
 };
+
+const QUICK_ACTIONS = [
+  { icon: '📋', labelKey: 'logbook',      path: '/logbook'    },
+  { icon: '🔧', labelKey: 'dvir',          path: '/dvir'       },
+  { icon: '📡', labelKey: 'dot_transfer',  path: '/transfer'   },
+  { icon: '⚠️', labelKey: 'violations',    path: '/violations' },
+];
 
 export default function DashboardPage() {
-  const { t }                        = useTranslation();
-  const { user, driver, logout }     = useAuth();
+  const { t }                                             = useTranslation();
+  const { user, driver, logout }                          = useAuth();
   const { hos, session, loading, isOnline, pendingCount } = useHOS();
-  const navigate                     = useNavigate();
+  const navigate                                          = useNavigate();
 
   const currentStatus = driver?.current_status || 'OFF';
-  const statusColor   = STATUS_COLORS[currentStatus] || '#64748b';
+  const statusColor   = STATUS_COLORS[currentStatus] || 'var(--status-off)';
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0f172a',
-      color: '#f1f5f9',
+      background: 'var(--surface-dim)',
+      color: 'var(--on-surface)',
       maxWidth: 480,
       margin: '0 auto',
-      padding: '0 0 80px',
+      paddingBottom: 80,
+      fontFamily: 'var(--font-body)',
     }}>
-      {/* Header */}
-      <div style={{
-        padding: '16px 16px 12px',
-        background: '#1e293b',
-        borderBottom: '1px solid #334155',
+
+      {/* ── Header ── */}
+      <header style={{
+        padding: 'var(--sp-4)',
+        background: 'var(--surface-low)',
+        borderBottom: '1px solid var(--outline)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
-        <div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>
-            {user?.first_name} {user?.last_name}
+        {/* Logo + user */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 36, height: 36,
+            borderRadius: 'var(--r-md)',
+            background: 'var(--primary-glow)',
+            border: '1px solid var(--outline-primary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 18,
+          }}>
+            🚛
           </div>
-          <div style={{ fontSize: 11, color: '#475569' }}>
-            {session?.session_date || 'No session'}
+          <div>
+            <div style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 600,
+              fontSize: 14,
+              color: 'var(--on-surface)',
+            }}>
+              {user?.first_name} {user?.last_name}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              color: 'var(--on-surface-dim)',
+              letterSpacing: '0.06em',
+            }}>
+              {session?.session_date || 'NO SESSION'}
+            </div>
           </div>
         </div>
 
+        {/* Status badge */}
         <div style={{
-          padding: '6px 14px',
-          borderRadius: 20,
-          background: statusColor + '22',
+          padding: '5px 14px',
+          borderRadius: 'var(--r-full)',
+          background: `${statusColor}18`,
           border: `1px solid ${statusColor}`,
           color: statusColor,
+          fontFamily: 'var(--font-mono)',
           fontWeight: 700,
-          fontSize: 14,
+          fontSize: 11,
+          letterSpacing: '0.08em',
+          boxShadow: currentStatus === 'D'
+            ? `0 0 12px ${statusColor}40`
+            : 'none',
         }}>
           {STATUS_LABELS[currentStatus]}
         </div>
-      </div>
+      </header>
 
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 'var(--sp-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
 
-        {/* Offline banner */}
+        {/* ── Connectivity banners ── */}
         {!isOnline && (
           <div style={{
-            padding: '8px 12px', marginBottom: 12,
-            background: '#78350f', border: '1px solid #f59e0b',
-            borderRadius: 8, color: '#fde68a', fontSize: 13,
-            display: 'flex', justifyContent: 'space-between',
+            padding: 'var(--sp-2) var(--sp-3)',
+            background: 'rgba(249,115,22,0.08)',
+            border: '1px solid var(--warning)',
+            borderRadius: 'var(--r-md)',
+            color: 'var(--warning)',
+            fontSize: 12,
+            fontFamily: 'var(--font-mono)',
+            display: 'flex',
+            justifyContent: 'space-between',
           }}>
-            <span>🔵 Offline — events queued locally</span>
-            {pendingCount > 0 && (
-              <span style={{ fontWeight: 700 }}>{pendingCount} pending</span>
-            )}
+            <span>⬡ OFFLINE — EVENTS QUEUED LOCALLY</span>
+            {pendingCount > 0 && <span style={{ fontWeight: 700 }}>{pendingCount} PENDING</span>}
           </div>
         )}
         {isOnline && pendingCount > 0 && (
           <div style={{
-            padding: '8px 12px', marginBottom: 12,
-            background: '#052e16', border: '1px solid #22c55e',
-            borderRadius: 8, color: '#86efac', fontSize: 13,
+            padding: 'var(--sp-2) var(--sp-3)',
+            background: 'var(--ok-glow)',
+            border: '1px solid var(--ok)',
+            borderRadius: 'var(--r-md)',
+            color: 'var(--ok)',
+            fontSize: 12,
+            fontFamily: 'var(--font-mono)',
           }}>
-            ✓ Back online — syncing {pendingCount} event(s)...
+            ✓ BACK ONLINE — SYNCING {pendingCount} EVENT(S)...
           </div>
         )}
 
-        {/* HOS Clocks */}
-        <section style={{ marginBottom: 20 }}>
-          <h2 style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            marginBottom: 10 }}>
-            Hours of Service
-          </h2>
+        {/* ── HOSHero — главный циферблат ── */}
+        <section>
           {loading && !hos ? (
-            <div style={{ color: '#475569', textAlign: 'center', padding: 20 }}>
-              {t('loading')}
+            <div style={{
+              height: 300,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--on-surface-dim)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              letterSpacing: '0.08em',
+            }}>
+              LOADING HOS DATA...
             </div>
           ) : (
-            <HOSClocks hos={hos} />
+            <HOSHero hos={hos} currentStatus={currentStatus} />
           )}
         </section>
 
-        {/* Status change */}
-        <section style={{ marginBottom: 20 }}>
-          <h2 style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            marginBottom: 10 }}>
-            {t('change_status')}
-          </h2>
+        {/* ── Compact rings (детали) ── */}
+        {hos && (
+          <section>
+            <HOSClocks hos={hos} />
+          </section>
+        )}
+
+        {/* ── Status Change ── */}
+        <section>
+          <SectionLabel>DUTY STATUS</SectionLabel>
           <StatusChangePanel currentStatus={currentStatus} />
         </section>
 
-        {/* ── OBD / ECM Panel (4.1) ── */}
-        <section style={{ marginBottom: 20 }}>
-          <h2 style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            marginBottom: 10 }}>
-            Engine Data
-          </h2>
+        {/* ── OBD / ECM Panel ── */}
+        <section>
+          <SectionLabel>ENGINE DATA</SectionLabel>
           <OBDPanel />
         </section>
 
-        {/* Quick nav */}
+        {/* ── Quick Actions ── */}
         <section>
-          <h2 style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            marginBottom: 10 }}>
-            Quick Actions
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {[
-              { icon: '📋', label: t('logbook'),     path: '/logbook'   },
-              { icon: '🔧', label: t('dvir'),         path: '/dvir'      },
-              { icon: '📡', label: t('dot_transfer'), path: '/transfer'  },
-              { icon: '⚠️', label: t('violations'),   path: '/violations'},
-            ].map(({ icon, label, path }) => (
+          <SectionLabel>QUICK ACCESS</SectionLabel>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 'var(--sp-2)',
+          }}>
+            {QUICK_ACTIONS.map(({ icon, labelKey, path }) => (
               <button
                 key={path}
                 onClick={() => navigate(path)}
                 style={{
-                  padding: '16px 12px',
-                  background: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: 12,
-                  color: '#e2e8f0',
+                  padding: 'var(--sp-4) var(--sp-3)',
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--card-border)',
+                  borderRadius: 'var(--r-lg)',
+                  color: 'var(--on-surface)',
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'flex-start',
                   gap: 6,
+                  transition: 'border-color var(--ease-fast), background var(--ease-fast)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--outline-primary)';
+                  e.currentTarget.style.background   = 'rgba(0,229,255,0.04)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--card-border)';
+                  e.currentTarget.style.background   = 'var(--card-bg)';
                 }}
               >
                 <span style={{ fontSize: 22 }}>{icon}</span>
-                <span style={{ fontSize: 13, fontWeight: 500 }}>{label}</span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--on-surface-muted)',
+                }}>
+                  {t(labelKey)}
+                </span>
               </button>
             ))}
           </div>
         </section>
 
-        {/* Logout */}
+        {/* ── Logout ── */}
         <button
           onClick={logout}
           style={{
-            marginTop: 24, width: '100%', padding: '12px 0',
-            background: 'transparent', border: '1px solid #334155',
-            borderRadius: 10, color: '#64748b', cursor: 'pointer', fontSize: 14,
+            width: '100%',
+            padding: 'var(--sp-3)',
+            background: 'transparent',
+            border: '1px solid var(--outline)',
+            borderRadius: 'var(--r-lg)',
+            color: 'var(--on-surface-dim)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            transition: 'border-color var(--ease-fast)',
           }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--danger)'}
+          onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--outline)'}
         >
           {t('logout')}
         </button>
+
       </div>
+    </div>
+  );
+}
+
+function SectionLabel({ children }) {
+  return (
+    <div style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: 10,
+      fontWeight: 600,
+      color: 'var(--on-surface-dim)',
+      letterSpacing: '0.12em',
+      textTransform: 'uppercase',
+      marginBottom: 'var(--sp-2)',
+    }}>
+      {children}
     </div>
   );
 }
