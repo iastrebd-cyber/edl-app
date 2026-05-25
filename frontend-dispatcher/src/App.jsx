@@ -14,6 +14,7 @@ import DriversList       from './components/DriversList';
 import AlertsPanel       from './components/AlertsPanel';
 import TripManager       from './components/TripManager';
 import ComplianceReports from './components/ComplianceReports';
+import CarrierSettings   from './components/CarrierSettings';
 import FleetStatsBar     from './components/FleetStatsBar';
 import { useWebSocket }  from './hooks/useWebSocket';
 import './App.css';
@@ -24,6 +25,7 @@ export default function App() {
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [showTrips,      setShowTrips]      = useState(false);
   const [showReports,    setShowReports]    = useState(false);
+  const [showSettings,   setShowSettings]   = useState(false);
   const [activeFilter,   setActiveFilter]   = useState('ALL_UNITS');
   const [time,           setTime]           = useState(new Date());
 
@@ -164,13 +166,19 @@ export default function App() {
             label="TRIPS"
             icon="🗺️"
             active={showTrips}
-            onClick={() => { setShowTrips(v => !v); setShowReports(false); }}
+            onClick={() => { setShowTrips(v => !v); setShowReports(false); setShowSettings(false); }}
           />
           <ActionBtn
             label="REPORTS"
             icon="📊"
             active={showReports}
-            onClick={() => { setShowReports(v => !v); setShowTrips(false); }}
+            onClick={() => { setShowReports(v => !v); setShowTrips(false); setShowSettings(false); }}
+          />
+          <ActionBtn
+            label="SETTINGS"
+            icon="⚙️"
+            active={showSettings}
+            onClick={() => { setShowSettings(v => !v); setShowTrips(false); setShowReports(false); }}
           />
         </div>
 
@@ -205,6 +213,11 @@ export default function App() {
       {/* ══ Compliance Reports ══ */}
       {showReports && (
         <ComplianceReports onClose={() => setShowReports(false)} />
+      )}
+
+      {/* ══ Carrier Settings ══ */}
+      {showSettings && (
+        <CarrierSettings onClose={() => setShowSettings(false)} />
       )}
     </div>
   );
