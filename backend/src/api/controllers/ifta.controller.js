@@ -281,11 +281,16 @@ async function getMiles(req, res) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'year and quarter are required' });
   }
 
+  // Reject non-integer strings like "1.5" — parseInt('1.5')===1 would silently pass
+  if (!Number.isInteger(Number(year)) || !Number.isInteger(Number(quarter))) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'year and quarter must be integers' });
+  }
+
   const yearInt    = parseInt(year,    10);
   const quarterInt = parseInt(quarter, 10);
 
   try {
-    quarterRange(yearInt, quarterInt); // validates
+    quarterRange(yearInt, quarterInt); // validates 1..4 range
   } catch (e) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: e.message });
   }
@@ -357,11 +362,15 @@ async function recalculateMiles(req, res) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'year and quarter are required' });
   }
 
+  if (!Number.isInteger(Number(year)) || !Number.isInteger(Number(quarter))) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'year and quarter must be integers' });
+  }
+
   const yearInt    = parseInt(year,    10);
   const quarterInt = parseInt(quarter, 10);
 
   try {
-    quarterRange(yearInt, quarterInt); // validates
+    quarterRange(yearInt, quarterInt); // validates 1..4 range
   } catch (e) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: e.message });
   }
@@ -456,6 +465,10 @@ async function generateReport(req, res) {
 
   if (!year || !quarter) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'year and quarter are required' });
+  }
+
+  if (!Number.isInteger(Number(year)) || !Number.isInteger(Number(quarter))) {
+    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'year and quarter must be integers' });
   }
 
   const yearInt    = parseInt(year,    10);
