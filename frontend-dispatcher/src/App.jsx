@@ -71,6 +71,14 @@ export default function App() {
     return () => clearInterval(t);
   }, []);
 
+  // ── Filtering — must stay ABOVE early returns (Rules of Hooks) ──
+  const filteredDrivers = useMemo(() => {
+    const all = Object.values(drivers);
+    if (activeFilter === 'DRIVING')  return Object.fromEntries(all.filter(d => d.hosStatus === 'D').map(d => [d.id, d]));
+    if (activeFilter === 'ON_DUTY')  return Object.fromEntries(all.filter(d => d.hosStatus === 'ON' || d.hosStatus === 'D').map(d => [d.id, d]));
+    return drivers;
+  }, [drivers, activeFilter]);
+
   // ── Auth gates ────────────────────────────────────────
   if (authState === 'checking') {
     return (
@@ -96,14 +104,6 @@ export default function App() {
       />
     );
   }
-
-  // Фильтрация
-  const filteredDrivers = useMemo(() => {
-    const all = Object.values(drivers);
-    if (activeFilter === 'DRIVING')  return Object.fromEntries(all.filter(d => d.hosStatus === 'D').map(d => [d.id, d]));
-    if (activeFilter === 'ON_DUTY')  return Object.fromEntries(all.filter(d => d.hosStatus === 'ON' || d.hosStatus === 'D').map(d => [d.id, d]));
-    return drivers;
-  }, [drivers, activeFilter]);
 
   return (
     <div style={{
