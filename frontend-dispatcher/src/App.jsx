@@ -18,12 +18,16 @@ import CarrierSettings   from './components/CarrierSettings';
 import IFTAFuelLog       from './components/IFTAFuelLog';
 import IFTAReports       from './components/IFTAReports';
 import FleetStatsBar     from './components/FleetStatsBar';
+import LoginScreen       from './components/LoginScreen';
 import { useWebSocket }  from './hooks/useWebSocket';
+import { checkAuth, logout, startRefreshTimer } from './auth';
 import './App.css';
 
 const FILTERS = ['ALL_UNITS', 'DRIVING', 'ON_DUTY'];
 
 export default function App() {
+  const [authState,       setAuthState]       = useState('checking'); // 'checking' | 'authenticated' | 'unauthenticated'
+  const [currentUser,     setCurrentUser]     = useState(null);
   const [selectedDriver,  setSelectedDriver]  = useState(null);
   const [showTrips,       setShowTrips]       = useState(false);
   const [showReports,     setShowReports]     = useState(false);
@@ -33,16 +37,65 @@ export default function App() {
   const [activeFilter,    setActiveFilter]    = useState('ALL_UNITS');
   const [time,            setTime]            = useState(new Date());
 
-  const TOKEN = localStorage.getItem('dispatcher_token') || 'DEMO';
+  // ── Auth: check on mount ───────────────────────────────
+  useEffect(() => {
+    checkAuth().then(result => {
+      if (result.ok) {
+        setCurrentUser(result.user);
+        setAuthState('authenticated');
+        startRefreshTimer();
+      } else {
+        setAuthState('unauthenticated');
+      }
+    });
+  }, []);
+
+  // ── Auth: listen for session expiry ───────────────────
+  useEffect(() => {
+    function onExpired() {
+      setCurrentUser(null);
+      setAuthState('unauthenticated');
+    }
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
+  }, []);
+
+  const TOKEN = localStorage.getItem('dispatcher_token') || '';
   const { drivers, alerts, connected } = useWebSocket(
     `ws://localhost:3000/ws?token=${TOKEN}`
   );
 
-  // Живые часы
+  // ── Live clock ────────────────────────────────────────
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // ── Auth gates ────────────────────────────────────────
+  if (authState === 'checking') {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: 'var(--surface-dim)',
+        color: 'var(--on-surface-dim)', fontFamily: 'var(--font-mono)',
+        fontSize: 13, letterSpacing: '0.08em',
+      }}>
+        INITIALIZING…
+      </div>
+    );
+  }
+
+  if (authState === 'unauthenticated') {
+    return (
+      <LoginScreen
+        onLoginSuccess={user => {
+          setCurrentUser(user);
+          setAuthState('authenticated');
+          startRefreshTimer();
+        }}
+      />
+    );
+  }
 
   // Фильтрация
   const filteredDrivers = useMemo(() => {
@@ -117,20 +170,62 @@ export default function App() {
               }} />
               {connected ? 'LIVE' : 'DISCONNECTED'}
             </div>
+
+            {/* Logout */}
+            <button
+              onClick={async () => { await logout(); setCurrentUser(null); setAuthState('unauthenticated'); }}
+              title={currentUser ? `Signed in as ${currentUser.email}` : 'Log out'}
+              style={{
+                marginLeft: 8,
+                padding: '3px 8px',
+                borderRadius: 'var(--r-full)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                cursor: 'pointer',
+                border: '1px solid var(--outline)',
+                background: 'transparent',
+                color: 'var(--on-surface-dim)',
+                transition: 'all var(--ease-fast)',
+              }}
+              onMouseEnter={e => { e.target.style.borderColor = 'var(--danger)'; e.target.style.color = 'var(--danger)'; }}
+              onMouseLeave={e => { e.target.style.borderColor = 'var(--outline)'; e.target.style.color = 'var(--on-surface-dim)'; }}
+            >
+              LOGOUT
+            </button>
           </div>
 
-          {/* Живые часы */}
+          {/* Live clock + user */}
           <div style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            color: 'var(--on-surface-dim)',
-            letterSpacing: '0.06em',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             marginBottom: 10,
           }}>
-            {time.toLocaleString('en-US', {
-              weekday: 'short', month: 'short', day: '2-digit',
-              hour: '2-digit', minute: '2-digit', second: '2-digit',
-            }).toUpperCase()}
+            <div style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              color: 'var(--on-surface-dim)',
+              letterSpacing: '0.06em',
+            }}>
+              {time.toLocaleString('en-US', {
+                weekday: 'short', month: 'short', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+              }).toUpperCase()}
+            </div>
+            {currentUser && (
+              <div style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9,
+                color: 'var(--on-surface-dim)',
+                letterSpacing: '0.04em',
+                maxWidth: 120,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {currentUser.name || currentUser.email}
+              </div>
+            )}
           </div>
 
           {/* Фильтры */}

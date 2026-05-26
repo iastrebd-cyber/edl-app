@@ -6,16 +6,13 @@
  */
 
 import { useEffect, useState } from 'react';
+import { authFetch } from '../auth';
 
 const API = 'http://localhost:3000';
 
 const YEARS    = [2024, 2025, 2026, 2027];
 const QUARTERS = [1, 2, 3, 4];
 
-function authHeaders() {
-  const token = localStorage.getItem('dispatcher_token') || '';
-  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-}
 
 function currentQuarter() {
   return Math.floor(new Date().getMonth() / 3) + 1;
@@ -58,8 +55,8 @@ export default function IFTAReports({ onClose }) {
     setLoading(true); setError(null);
     try {
       const [mRes, rRes] = await Promise.all([
-        fetch(`${API}/api/ifta/miles?year=${year}&quarter=${quarter}`, { headers: authHeaders() }),
-        fetch(`${API}/api/ifta/reports/${year}/${quarter}`,            { headers: authHeaders() }),
+        authFetch(`${API}/api/ifta/miles?year=${year}&quarter=${quarter}`, {}),
+        authFetch(`${API}/api/ifta/reports/${year}/${quarter}`,            {}),
       ]);
 
       if (mRes.status === 401 || rRes.status === 401) {
@@ -96,8 +93,8 @@ export default function IFTAReports({ onClose }) {
   async function handleRecalculate() {
     setCalculating(true); setError(null);
     try {
-      const res = await fetch(`${API}/api/ifta/miles/recalculate`, {
-        method: 'POST', headers: authHeaders(),
+      const res = await authFetch(`${API}/api/ifta/miles/recalculate`, {
+        method: 'POST',
         body: JSON.stringify({ year: selectedYear, quarter: selectedQuarter }),
       });
       const json = await res.json();
@@ -105,9 +102,9 @@ export default function IFTAReports({ onClose }) {
       if (!res.ok)            { setError(json.message || 'Recalculation failed.'); return; }
 
       // Refresh miles from the mileage endpoint
-      const mRes = await fetch(
+      const mRes = await authFetch(
         `${API}/api/ifta/miles?year=${selectedYear}&quarter=${selectedQuarter}`,
-        { headers: authHeaders() }
+        {}
       );
       if (mRes.ok) setMilesData(await mRes.json());
     } catch (e) {
@@ -122,8 +119,8 @@ export default function IFTAReports({ onClose }) {
   async function handleGenerate() {
     setGenerating(true); setError(null);
     try {
-      const res = await fetch(`${API}/api/ifta/reports/generate`, {
-        method: 'POST', headers: authHeaders(),
+      const res = await authFetch(`${API}/api/ifta/reports/generate`, {
+        method: 'POST',
         body: JSON.stringify({ year: selectedYear, quarter: selectedQuarter }),
       });
       const json = await res.json();
@@ -155,8 +152,8 @@ export default function IFTAReports({ onClose }) {
     )) return;
     setError(null);
     try {
-      const res = await fetch(`${API}/api/ifta/reports/${reportData.id}/finalize`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({}),
+      const res = await authFetch(`${API}/api/ifta/reports/${reportData.id}/finalize`, {
+        method: 'POST', body: JSON.stringify({}),
       });
       const json = await res.json();
       if (res.status === 401) { setError('Session expired.'); return; }
@@ -172,8 +169,8 @@ export default function IFTAReports({ onClose }) {
   async function handleFile() {
     setError(null);
     try {
-      const res = await fetch(`${API}/api/ifta/reports/${reportData.id}/file`, {
-        method: 'POST', headers: authHeaders(),
+      const res = await authFetch(`${API}/api/ifta/reports/${reportData.id}/file`, {
+        method: 'POST',
         body: JSON.stringify({ confirmation_number: confirmationInput.trim() || undefined }),
       });
       const json = await res.json();

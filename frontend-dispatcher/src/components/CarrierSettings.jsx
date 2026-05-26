@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { authFetch } from '../auth';
 
 const API = 'http://localhost:3000';
 
@@ -40,13 +41,6 @@ const TABS = [
   { id: 'eld',     label: 'ELD PROVIDER' },
 ];
 
-function authHeaders() {
-  const token = localStorage.getItem('dispatcher_token') || '';
-  return {
-    'Content-Type':  'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-}
 
 export default function CarrierSettings({ onClose }) {
   const [tab,            setTab]            = useState('company');
@@ -69,8 +63,8 @@ export default function CarrierSettings({ onClose }) {
       setError(null);
       try {
         const [carrierRes, devicesRes] = await Promise.all([
-          fetch(`${API}/api/carriers/me`,         { headers: authHeaders() }),
-          fetch(`${API}/api/carriers/me/devices`, { headers: authHeaders() }),
+          authFetch(`${API}/api/carriers/me`,         {}),
+          authFetch(`${API}/api/carriers/me/devices`, {}),
         ]);
 
         if (carrierRes.status === 401 || devicesRes.status === 401) {
@@ -148,9 +142,8 @@ export default function CarrierSettings({ onClose }) {
     };
 
     try {
-      const res = await fetch(`${API}/api/carriers/me`, {
+      const res = await authFetch(`${API}/api/carriers/me`, {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify(payload),
       });
 
@@ -183,9 +176,8 @@ export default function CarrierSettings({ onClose }) {
   async function handleCreateDevice(deviceForm) {
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`${API}/api/carriers/me/devices`, {
+      const res = await authFetch(`${API}/api/carriers/me/devices`, {
         method: 'POST',
-        headers: authHeaders(),
         body: JSON.stringify(deviceForm),
       });
       const json = await res.json();
@@ -208,9 +200,8 @@ export default function CarrierSettings({ onClose }) {
   async function handleUpdateDevice(id, patch) {
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`${API}/api/carriers/me/devices/${id}`, {
+      const res = await authFetch(`${API}/api/carriers/me/devices/${id}`, {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify(patch),
       });
       const json = await res.json();
@@ -232,9 +223,8 @@ export default function CarrierSettings({ onClose }) {
     if (!window.confirm('Deactivate this device? It will remain in records but stop being used.')) return;
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`${API}/api/carriers/me/devices/${id}`, {
+      const res = await authFetch(`${API}/api/carriers/me/devices/${id}`, {
         method: 'DELETE',
-        headers: authHeaders(),
       });
       const json = await res.json();
       if (res.status === 401) { setError('Session expired. Please log in again.'); return; }

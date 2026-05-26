@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
+import { authFetch } from '../auth';
 
 const API = 'http://localhost:3000';
 const LIMIT = 100;
@@ -30,10 +31,6 @@ const FUEL_TYPE_COLORS = {
 
 const YEARS = [2024, 2025, 2026, 2027];
 
-function authHeaders() {
-  const token = localStorage.getItem('dispatcher_token') || '';
-  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-}
 
 function emptyForm() {
   return {
@@ -89,8 +86,8 @@ export default function IFTAFuelLog({ onClose }) {
       setLoading(true); setError(null);
       try {
         const [jurRes, fuelRes] = await Promise.all([
-          fetch(`${API}/api/ifta/jurisdictions`, { headers: authHeaders() }),
-          fetch(`${API}/api/ifta/fuel?year=${currentYear}&limit=${LIMIT}&offset=0`, { headers: authHeaders() }),
+          authFetch(`${API}/api/ifta/jurisdictions`, {}),
+          authFetch(`${API}/api/ifta/fuel?year=${currentYear}&limit=${LIMIT}&offset=0`, {}),
         ]);
         if (jurRes.status === 401 || fuelRes.status === 401) {
           if (!cancel) setError('Session expired. Please log in again.');
@@ -125,7 +122,7 @@ export default function IFTAFuelLog({ onClose }) {
       p.set('limit',  LIMIT);
       p.set('offset', pg * LIMIT);
 
-      const res = await fetch(`${API}/api/ifta/fuel?${p}`, { headers: authHeaders() });
+      const res = await authFetch(`${API}/api/ifta/fuel?${p}`, {});
       if (res.status === 401) { setError('Session expired.'); return; }
       const json = res.ok ? await res.json() : { purchases: [], total: 0 };
       setPurchases(json.purchases || []);
@@ -192,8 +189,8 @@ export default function IFTAFuelLog({ onClose }) {
       if (addForm.station_address)  body.station_address  = addForm.station_address;
       if (addForm.notes)            body.notes            = addForm.notes;
 
-      const res = await fetch(`${API}/api/ifta/fuel`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
+      const res = await authFetch(`${API}/api/ifta/fuel`, {
+        method: 'POST', body: JSON.stringify(body),
       });
       const json = await res.json();
 
@@ -251,8 +248,8 @@ export default function IFTAFuelLog({ onClose }) {
       body.station_address = editForm.station_address || null;
       body.notes           = editForm.notes           || null;
 
-      const res = await fetch(`${API}/api/ifta/fuel/${editingId}`, {
-        method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body),
+      const res = await authFetch(`${API}/api/ifta/fuel/${editingId}`, {
+        method: 'PATCH', body: JSON.stringify(body),
       });
       const json = await res.json();
 
@@ -278,8 +275,8 @@ export default function IFTAFuelLog({ onClose }) {
     if (!window.confirm('Delete this fuel purchase?')) return;
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`${API}/api/ifta/fuel/${id}`, {
-        method: 'DELETE', headers: authHeaders(),
+      const res = await authFetch(`${API}/api/ifta/fuel/${id}`, {
+        method: 'DELETE',
       });
       if (res.status === 401) { setError('Session expired.'); return; }
       if (res.status === 404) { setError('Purchase not found.'); return; }
