@@ -15,6 +15,8 @@ import AlertsPanel       from './components/AlertsPanel';
 import TripManager       from './components/TripManager';
 import ComplianceReports from './components/ComplianceReports';
 import CarrierSettings   from './components/CarrierSettings';
+import IFTAFuelLog       from './components/IFTAFuelLog';
+import IFTAReports       from './components/IFTAReports';
 import FleetStatsBar     from './components/FleetStatsBar';
 import { useWebSocket }  from './hooks/useWebSocket';
 import './App.css';
@@ -22,12 +24,14 @@ import './App.css';
 const FILTERS = ['ALL_UNITS', 'DRIVING', 'ON_DUTY'];
 
 export default function App() {
-  const [selectedDriver, setSelectedDriver] = useState(null);
-  const [showTrips,      setShowTrips]      = useState(false);
-  const [showReports,    setShowReports]    = useState(false);
-  const [showSettings,   setShowSettings]   = useState(false);
-  const [activeFilter,   setActiveFilter]   = useState('ALL_UNITS');
-  const [time,           setTime]           = useState(new Date());
+  const [selectedDriver,  setSelectedDriver]  = useState(null);
+  const [showTrips,       setShowTrips]       = useState(false);
+  const [showReports,     setShowReports]     = useState(false);
+  const [showSettings,    setShowSettings]    = useState(false);
+  const [showIFTAFuel,    setShowIFTAFuel]    = useState(false);
+  const [showIFTAReports, setShowIFTAReports] = useState(false);
+  const [activeFilter,    setActiveFilter]    = useState('ALL_UNITS');
+  const [time,            setTime]            = useState(new Date());
 
   const TOKEN = localStorage.getItem('dispatcher_token') || 'DEMO';
   const { drivers, alerts, connected } = useWebSocket(
@@ -166,19 +170,51 @@ export default function App() {
             label="TRIPS"
             icon="🗺️"
             active={showTrips}
-            onClick={() => { setShowTrips(v => !v); setShowReports(false); setShowSettings(false); }}
+            onClick={() => {
+              setShowTrips(v => !v);
+              setShowReports(false); setShowSettings(false);
+              setShowIFTAFuel(false); setShowIFTAReports(false);
+            }}
           />
           <ActionBtn
             label="REPORTS"
             icon="📊"
             active={showReports}
-            onClick={() => { setShowReports(v => !v); setShowTrips(false); setShowSettings(false); }}
+            onClick={() => {
+              setShowReports(v => !v);
+              setShowTrips(false); setShowSettings(false);
+              setShowIFTAFuel(false); setShowIFTAReports(false);
+            }}
+          />
+          <ActionBtn
+            label="IFTA FUEL"
+            icon="⛽"
+            active={showIFTAFuel}
+            onClick={() => {
+              setShowIFTAFuel(v => !v);
+              setShowTrips(false); setShowReports(false);
+              setShowSettings(false); setShowIFTAReports(false);
+            }}
+          />
+          <ActionBtn
+            label="IFTA RPT"
+            icon="📋"
+            active={showIFTAReports}
+            onClick={() => {
+              setShowIFTAReports(v => !v);
+              setShowTrips(false); setShowReports(false);
+              setShowSettings(false); setShowIFTAFuel(false);
+            }}
           />
           <ActionBtn
             label="SETTINGS"
             icon="⚙️"
             active={showSettings}
-            onClick={() => { setShowSettings(v => !v); setShowTrips(false); setShowReports(false); }}
+            onClick={() => {
+              setShowSettings(v => !v);
+              setShowTrips(false); setShowReports(false);
+              setShowIFTAFuel(false); setShowIFTAReports(false);
+            }}
           />
         </div>
 
@@ -218,6 +254,16 @@ export default function App() {
       {/* ══ Carrier Settings ══ */}
       {showSettings && (
         <CarrierSettings onClose={() => setShowSettings(false)} />
+      )}
+
+      {/* ══ IFTA Fuel Log ══ */}
+      {showIFTAFuel && (
+        <IFTAFuelLog onClose={() => setShowIFTAFuel(false)} />
+      )}
+
+      {/* ══ IFTA Reports ══ */}
+      {showIFTAReports && (
+        <IFTAReports onClose={() => setShowIFTAReports(false)} />
       )}
     </div>
   );
