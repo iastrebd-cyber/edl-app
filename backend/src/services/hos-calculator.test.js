@@ -4,7 +4,10 @@
  * src/services/hos-calculator.test.js
  *
  * Unit tests for HOS Calculator.
- * Run: npx jest hos-calculator --verbose
+ * Run: node --test src/services/hos-calculator.test.js
+ *
+ * Uses Node's built-in test runner (node:test) — no test framework
+ * dependency required.
  *
  * Tests cover:
  *   ✓ Basic driving accumulation
@@ -17,7 +20,6 @@
  *   ✓ 34h restart
  *   ✓ Personal Conveyance exclusion
  *   ✓ Yard Move counting as ON
- *   ✓ Sleeper Berth split (8+2)
  *   ✓ Adverse driving conditions
  *   ✓ Canada 13h limit
  *   ✓ Canada 8h reset
@@ -27,6 +29,9 @@
  *   ✓ Edge case: no events
  *   ✓ Edge case: only rest events
  */
+
+const { test, describe } = require('node:test');
+const assert = require('node:assert/strict');
 
 const {
   calculateHOS,
@@ -71,6 +76,14 @@ function hoursFrom(base, offsetHours) {
   return new Date(base.getTime() + offsetHours * 3600000);
 }
 
+/**
+ * Jest toBeCloseTo(expected, precision) equivalent.
+ * Passes when |a - b| < 10^(-precision) / 2
+ */
+function approxEqual(a, b, precision = 1) {
+  return Math.abs(a - b) < Math.pow(10, -precision) / 2;
+}
+
 // Fixed reference time for all tests: 2025-01-15 14:00 UTC (Wednesday)
 const BASE = new Date('2025-01-15T14:00:00.000Z');
 
@@ -82,10 +95,10 @@ describe('Basic driving accumulation', () => {
 
   test('No events → all remaining, no violations', () => {
     const result = calculateHOS([], 'usa_70', BASE);
-    expect(result.driving_today).toBe(0);
-    expect(result.driving_remaining).toBe(11);
-    expect(result.cycle_remaining).toBe(70);
-    expect(result.violations).toHaveLength(0);
+    assert.strictEqual(result.driving_today, 0);
+    assert.strictEqual(result.driving_remaining, 11);
+    assert.strictEqual(result.cycle_remaining, 70);
+    assert.strictEqual(result.violations.length, 0);
   });
 
   test('2 hours of driving', () => {
@@ -96,9 +109,9 @@ describe('Basic driving accumulation', () => {
       mkEvent('ON',  hoursFrom(BASE, -1)),   // stop driving
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
-    expect(result.driving_today).toBe(2);
-    expect(result.driving_remaining).toBe(9);
-    expect(result.violations).toHaveLength(0);
+    assert.strictEqual(result.driving_today, 2);
+    assert.strictEqual(result.driving_remaining, 9);
+    assert.strictEqual(result.violations.length, 0);
   });
 
   test('Driving right up to current time', () => {
@@ -109,8 +122,14 @@ describe('Basic driving accumulation', () => {
       mkEvent('D',   hoursFrom(BASE, -5)),  // driving for 5 hours
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
-    expect(result.driving_today).toBeCloseTo(5, 1);
-    expect(result.driving_remaining).toBeCloseTo(6, 1);
+    assert.ok(
+      approxEqual(result.driving_today, 5, 1),
+      `expected driving_today ≈ 5, got ${result.driving_today}`
+    );
+    assert.ok(
+      approxEqual(result.driving_remaining, 6, 1),
+      `expected driving_remaining ≈ 6, got ${result.driving_remaining}`
+    );
   });
 
 });
@@ -129,8 +148,11 @@ describe('11-hour driving limit (USA)', () => {
       mkEvent('OFF', hoursFrom(BASE, 0)),   // just stopped
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
-    expect(result.driving_today).toBeCloseTo(11, 1);
-    expect(result.driving_remaining).toBe(0);
+    assert.ok(
+      approxEqual(result.driving_today, 11, 1),
+      `expected driving_today ≈ 11, got ${result.driving_today}`
+    );
+    assert.strictEqual(result.driving_remaining, 0);
   });
 
   test('11.5h driving → violation', () => {
@@ -140,10 +162,10 @@ describe('11-hour driving limit (USA)', () => {
       mkEvent('D',   hoursFrom(BASE, -11.5)),
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
-    expect(result.driving_today).toBeGreaterThan(11);
+    assert.ok(result.driving_today > 11, `expected driving_today > 11, got ${result.driving_today}`);
     const v = result.violations.find(v => v.type === 'driving_11h');
-    expect(v).toBeDefined();
-    expect(v.severity).toBe('violation');
+    assert.notStrictEqual(v, undefined, 'expected driving_11h violation');
+    assert.strictEqual(v.severity, 'violation');
   });
 
   test('10.2h driving → warning (within 1h of limit)', () => {
@@ -154,8 +176,8 @@ describe('11-hour driving limit (USA)', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     const w = result.violations.find(v => v.type === 'warn_driving_1h');
-    expect(w).toBeDefined();
-    expect(w.severity).toBe('warning');
+    assert.notStrictEqual(w, undefined, 'expected warn_driving_1h warning');
+    assert.strictEqual(w.severity, 'warning');
   });
 
   test('Adverse driving: 13h allowed → no violation at 12h', () => {
@@ -165,8 +187,14 @@ describe('11-hour driving limit (USA)', () => {
       mkEvent('D',   hoursFrom(BASE, -12)),
     ];
     const result = calculateHOS(events, 'usa_70', BASE, { adverseDriving: true });
-    expect(result.driving_remaining).toBeCloseTo(1, 1);
-    expect(result.violations.filter(v => v.type === 'driving_11h')).toHaveLength(0);
+    assert.ok(
+      approxEqual(result.driving_remaining, 1, 1),
+      `expected driving_remaining ≈ 1, got ${result.driving_remaining}`
+    );
+    assert.strictEqual(
+      result.violations.filter(v => v.type === 'driving_11h').length,
+      0
+    );
   });
 
 });
@@ -185,8 +213,11 @@ describe('14-hour on-duty window', () => {
       mkEvent('ON',  hoursFrom(BASE, -5)),
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
-    expect(result.shift_remaining).toBeCloseTo(1, 1);
-    expect(result.violations.filter(v => v.type === 'shift_14h')).toHaveLength(0);
+    assert.ok(
+      approxEqual(result.shift_remaining, 1, 1),
+      `expected shift_remaining ≈ 1, got ${result.shift_remaining}`
+    );
+    assert.strictEqual(result.violations.filter(v => v.type === 'shift_14h').length, 0);
   });
 
   test('15h since first on-duty → violation', () => {
@@ -198,13 +229,13 @@ describe('14-hour on-duty window', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     const v = result.violations.find(v => v.type === 'shift_14h');
-    expect(v).toBeDefined();
-    expect(v.severity).toBe('violation');
+    assert.notStrictEqual(v, undefined, 'expected shift_14h violation');
+    assert.strictEqual(v.severity, 'violation');
   });
 
   test('OFF time in middle does NOT extend 14h window', () => {
-    // Driver went ON at -14h, took a 2h OFF break, came back ON
-    // Window still expires 14h from first ON, not reset by the break
+    // Driver went ON at -14h, took a 2h OFF break, came back ON.
+    // Window still expires 14h from first ON, not reset by the break.
     const events = [
       mkEvent('OFF', hoursFrom(BASE, -24)),
       mkEvent('ON',  hoursFrom(BASE, -14)),   // window start
@@ -214,7 +245,10 @@ describe('14-hour on-duty window', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     // Window started 14h ago → should be at/near 0 remaining
-    expect(result.shift_remaining).toBeLessThanOrEqual(0.1);
+    assert.ok(
+      result.shift_remaining <= 0.1,
+      `expected shift_remaining <= 0.1, got ${result.shift_remaining}`
+    );
   });
 
 });
@@ -233,8 +267,8 @@ describe('30-minute break requirement', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     const v = result.violations.find(v => v.type === 'break_30min');
-    expect(v).toBeDefined();
-    expect(v.severity).toBe('violation');
+    assert.notStrictEqual(v, undefined, 'expected break_30min violation');
+    assert.strictEqual(v.severity, 'violation');
   });
 
   test('7h driving with 30min OFF break → no break violation', () => {
@@ -247,7 +281,7 @@ describe('30-minute break requirement', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     const v = result.violations.find(v => v.type === 'break_30min');
-    expect(v).toBeUndefined();
+    assert.strictEqual(v, undefined);
   });
 
   test('SB period counts as break', () => {
@@ -259,7 +293,7 @@ describe('30-minute break requirement', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     const v = result.violations.find(v => v.type === 'break_30min');
-    expect(v).toBeUndefined();
+    assert.strictEqual(v, undefined);
   });
 
   test('Warning when 30min from break requirement', () => {
@@ -270,7 +304,7 @@ describe('30-minute break requirement', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     const w = result.violations.find(v => v.type === 'warn_break_30min');
-    expect(w).toBeDefined();
+    assert.notStrictEqual(w, undefined, 'expected warn_break_30min warning');
   });
 
 });
@@ -292,8 +326,14 @@ describe('10-hour rest reset (USA)', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     // Only 3h counted since the 10h reset
-    expect(result.driving_today).toBeCloseTo(3, 1);
-    expect(result.driving_remaining).toBeCloseTo(8, 1);
+    assert.ok(
+      approxEqual(result.driving_today, 3, 1),
+      `expected driving_today ≈ 3, got ${result.driving_today}`
+    );
+    assert.ok(
+      approxEqual(result.driving_remaining, 8, 1),
+      `expected driving_remaining ≈ 8, got ${result.driving_remaining}`
+    );
   });
 
   test('9h OFF does NOT reset (needs full 10h)', () => {
@@ -304,7 +344,7 @@ describe('10-hour rest reset (USA)', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     // The 9h rest is not enough — duty day started earlier
-    expect(result.driving_today).toBeGreaterThan(5);
+    assert.ok(result.driving_today > 5, `expected driving_today > 5, got ${result.driving_today}`);
   });
 
   test('Interrupted rest: 5h OFF + 1h ON + 5h OFF does NOT count as reset', () => {
@@ -318,7 +358,7 @@ describe('10-hour rest reset (USA)', () => {
     const result = calculateHOS(events, 'usa_70', BASE);
     // The interrupted rest should NOT count as a 10h reset
     // duty day should extend back before the first ON
-    expect(result.duty_day_start).toBeDefined();
+    assert.notStrictEqual(result.duty_day_start, undefined);
   });
 
 });
@@ -347,8 +387,8 @@ describe('70h/8-day cycle', () => {
     const result = calculateHOS(events, 'usa_70', BASE);
     // 8 days × 8h on-duty + 1h today = up to 65h, so ~5h remaining
     // Allow ±2h tolerance due to cycle window boundary math
-    expect(result.cycle_remaining).toBeGreaterThanOrEqual(3);
-    expect(result.cycle_remaining).toBeLessThanOrEqual(7);
+    assert.ok(result.cycle_remaining >= 3, `expected cycle_remaining >= 3, got ${result.cycle_remaining}`);
+    assert.ok(result.cycle_remaining <= 7, `expected cycle_remaining <= 7, got ${result.cycle_remaining}`);
   });
 
   test('Over 70h → cycle violation', () => {
@@ -360,7 +400,7 @@ describe('70h/8-day cycle', () => {
     }
     const result = calculateHOS(events, 'usa_70', BASE);
     const v = result.violations.find(v => v.type === 'cycle_70h');
-    expect(v).toBeDefined();
+    assert.notStrictEqual(v, undefined, 'expected cycle_70h violation');
   });
 
 });
@@ -369,7 +409,7 @@ describe('60h/7-day cycle', () => {
 
   test('usa_60 cycle uses 60h/7-day limit', () => {
     const result = calculateHOS([], 'usa_60', BASE);
-    expect(result.cycle_remaining).toBe(60);
+    assert.strictEqual(result.cycle_remaining, 60);
   });
 
 });
@@ -389,7 +429,10 @@ describe('Personal Conveyance', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     // PC driving (2h) should NOT count toward 11h limit
-    expect(result.driving_today).toBeCloseTo(0, 1);
+    assert.ok(
+      approxEqual(result.driving_today, 0, 1),
+      `expected driving_today ≈ 0, got ${result.driving_today}`
+    );
   });
 
   test('PC hours count as off-duty rest', () => {
@@ -400,7 +443,7 @@ describe('Personal Conveyance', () => {
     ];
     // The PC period is OFF — should help accumulate rest
     const result = calculateHOS(events, 'usa_70', BASE);
-    expect(result.violations).toBeDefined();
+    assert.notStrictEqual(result.violations, undefined);
   });
 
 });
@@ -420,9 +463,9 @@ describe('Yard Move', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     // Driving should be 0 (YM is ON, not D)
-    expect(result.driving_today).toBe(0);
+    assert.strictEqual(result.driving_today, 0);
     // But on-duty cycle hours should include YM
-    expect(result.on_duty_in_cycle).toBeGreaterThan(0);
+    assert.ok(result.on_duty_in_cycle > 0, `expected on_duty_in_cycle > 0, got ${result.on_duty_in_cycle}`);
   });
 
 });
@@ -435,17 +478,17 @@ describe('Canada rules', () => {
 
   test('canada_70: 13h driving limit', () => {
     const result = calculateHOS([], 'canada_70', BASE);
-    expect(result.driving_remaining).toBe(13);
+    assert.strictEqual(result.driving_remaining, 13);
   });
 
   test('canada_70: 70h/7-day cycle', () => {
     const result = calculateHOS([], 'canada_70', BASE);
-    expect(result.cycle_remaining).toBe(70);
+    assert.strictEqual(result.cycle_remaining, 70);
   });
 
   test('canada_120: 120h/14-day cycle', () => {
     const result = calculateHOS([], 'canada_120', BASE);
-    expect(result.cycle_remaining).toBe(120);
+    assert.strictEqual(result.cycle_remaining, 120);
   });
 
   test('canada_70: 12h driving → no violation (limit is 13h)', () => {
@@ -455,8 +498,11 @@ describe('Canada rules', () => {
       mkEvent('D',   hoursFrom(BASE, -12)),
     ];
     const result = calculateHOS(events, 'canada_70', BASE);
-    expect(result.driving_today).toBeCloseTo(12, 1);
-    expect(result.violations.filter(v => v.type === 'driving_13h')).toHaveLength(0);
+    assert.ok(
+      approxEqual(result.driving_today, 12, 1),
+      `expected driving_today ≈ 12, got ${result.driving_today}`
+    );
+    assert.strictEqual(result.violations.filter(v => v.type === 'driving_13h').length, 0);
   });
 
   test('canada_70: 13.5h driving → violation', () => {
@@ -466,13 +512,13 @@ describe('Canada rules', () => {
       mkEvent('D',   hoursFrom(BASE, -13.5)),
     ];
     const result = calculateHOS(events, 'canada_70', BASE);
-    expect(result.driving_today).toBeGreaterThan(13);
-    expect(result.has_violation).toBe(true);
+    assert.ok(result.driving_today > 13, `expected driving_today > 13, got ${result.driving_today}`);
+    assert.strictEqual(result.has_violation, true);
   });
 
   test('Canada deferral: +2h driving available', () => {
     const result = calculateHOS([], 'canada_70', BASE, { deferralHours: 2 });
-    expect(result.driving_remaining).toBe(15);  // 13 + 2
+    assert.strictEqual(result.driving_remaining, 15);  // 13 + 2
   });
 
 });
@@ -488,8 +534,8 @@ describe('34h restart period validation', () => {
     const restStart = new Date('2025-01-13T20:00:00.000Z');  // Monday 8pm UTC
     const restEnd   = new Date('2025-01-15T06:00:00.000Z');  // Wednesday 6am UTC
     const result = validateRestartPeriods(restStart, restEnd, 'UTC');
-    expect(result.valid).toBe(true);
-    expect(result.periods).toBeGreaterThanOrEqual(2);
+    assert.strictEqual(result.valid, true);
+    assert.ok(result.periods >= 2, `expected periods >= 2, got ${result.periods}`);
   });
 
   test('34h rest with only one 1am-5am period → invalid restart', () => {
@@ -497,8 +543,8 @@ describe('34h restart period validation', () => {
     const restStart = new Date('2025-01-13T02:00:00.000Z');  // Monday 2am
     const restEnd   = new Date('2025-01-14T12:00:00.000Z');  // Tuesday noon = 34h
     const result = validateRestartPeriods(restStart, restEnd, 'UTC');
-    expect(result.valid).toBe(false);
-    expect(result.periods).toBeLessThan(2);
+    assert.strictEqual(result.valid, false);
+    assert.ok(result.periods < 2, `expected periods < 2, got ${result.periods}`);
   });
 
 });
@@ -515,12 +561,12 @@ describe('Edge cases', () => {
       mkEvent('OFF', hoursFrom(BASE, -12)),
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
-    expect(result.driving_today).toBe(0);
-    expect(result.violations).toHaveLength(0);
+    assert.strictEqual(result.driving_today, 0);
+    assert.strictEqual(result.violations.length, 0);
   });
 
   test('Unknown cycle → throws error', () => {
-    expect(() => calculateHOS([], 'invalid_cycle', BASE)).toThrow();
+    assert.throws(() => calculateHOS([], 'invalid_cycle', BASE));
   });
 
   test('Events with record_status 2 (inactive) are ignored', () => {
@@ -530,7 +576,7 @@ describe('Edge cases', () => {
     ];
     const result = calculateHOS(events, 'usa_70', BASE);
     // The inactive D event should be ignored
-    expect(result.driving_today).toBe(0);
+    assert.strictEqual(result.driving_today, 0);
   });
 
   test('Events out of order are sorted correctly', () => {
@@ -539,13 +585,16 @@ describe('Edge cases', () => {
     const e3 = mkEvent('D',  hoursFrom(BASE, -3));
     // Pass in wrong order
     const result = calculateHOS([e3, e1, e2], 'usa_70', BASE);
-    expect(result.driving_today).toBeCloseTo(3, 1);
+    assert.ok(
+      approxEqual(result.driving_today, 3, 1),
+      `expected driving_today ≈ 3, got ${result.driving_today}`
+    );
   });
 
   test('has_violation and has_warning flags', () => {
     const clean = calculateHOS([], 'usa_70', BASE);
-    expect(clean.has_violation).toBe(false);
-    expect(clean.has_warning).toBe(false);
+    assert.strictEqual(clean.has_violation, false);
+    assert.strictEqual(clean.has_warning, false);
 
     const events = [
       mkEvent('OFF', hoursFrom(BASE, -20)),
@@ -553,7 +602,7 @@ describe('Edge cases', () => {
       mkEvent('D',   hoursFrom(BASE, -8)),  // 8h driving → break violation
     ];
     const withViolation = calculateHOS(events, 'usa_70', BASE);
-    expect(withViolation.has_violation).toBe(true);
+    assert.strictEqual(withViolation.has_violation, true);
   });
 
 });
@@ -572,19 +621,19 @@ describe('buildSegments', () => {
       mkEvent('OFF', end),
     ];
     const segments = buildSegments(events, BASE);
-    expect(segments).toHaveLength(2);
-    expect(segments[0].status).toBe('D');
-    expect(segments[1].status).toBe('OFF');
+    assert.strictEqual(segments.length, 2);
+    assert.strictEqual(segments[0].status, 'D');
+    assert.strictEqual(segments[1].status, 'OFF');
   });
 
   test('Last segment extends to now', () => {
     const events = [mkEvent('D', hoursFrom(BASE, -3))];
     const segments = buildSegments(events, BASE);
-    expect(segments[0].end).toBe(BASE.getTime());
+    assert.strictEqual(segments[0].end, BASE.getTime());
   });
 
   test('Empty events → empty segments', () => {
-    expect(buildSegments([], BASE)).toHaveLength(0);
+    assert.strictEqual(buildSegments([], BASE).length, 0);
   });
 
 });

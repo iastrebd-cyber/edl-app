@@ -44,7 +44,6 @@ const TABS = [
 
 export default function CarrierSettings({ onClose }) {
   const [tab,            setTab]            = useState('company');
-  const [carrier,        setCarrier]        = useState(null);
   const [formCarrier,    setFormCarrier]    = useState(null);
   const [devices,        setDevices]        = useState([]);
   const [loading,        setLoading]        = useState(true);
@@ -80,7 +79,6 @@ export default function CarrierSettings({ onClose }) {
         const devicesJson = devicesRes.ok ? await devicesRes.json() : { devices: [] };
 
         if (cancel) return;
-        setCarrier(carrierJson.carrier);
         setFormCarrier({ ...carrierJson.carrier });
         setDevices(devicesJson.devices || []);
       } catch (err) {
@@ -161,7 +159,6 @@ export default function CarrierSettings({ onClose }) {
         return;
       }
 
-      setCarrier(json.carrier);
       setFormCarrier({ ...json.carrier });
       setSuccessMsg('Saved!');
     } catch (err) {
