@@ -5,6 +5,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../api/client';
+import { clearOfflineData } from '../utils/offlineDB';
 
 const AuthContext = createContext(null);
 
@@ -45,6 +46,7 @@ export function AuthProvider({ children }) {
     try { await authAPI.logout(); } catch {}
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    try { await clearOfflineData(); } catch {}
     setUser(null);
     setDriver(null);
   };

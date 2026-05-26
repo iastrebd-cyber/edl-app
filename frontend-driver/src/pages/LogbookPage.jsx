@@ -15,6 +15,7 @@ import { useAuth }             from '../store/AuthContext';
 import { useHOS }              from '../store/HOSContext';
 import { hosAPI, sessionsAPI } from '../api/client';
 import LogbookGrid             from '../components/hos/LogbookGrid';
+import SignatureCanvas         from '../components/shared/SignatureCanvas';
 
 const STATUS_LABELS = { OFF: 'Off Duty', SB: 'Sleeper Berth', D: 'Driving', ON: 'On Duty' };
 const STATUS_COLORS = { OFF: '#64748b', SB: '#6366f1', D: '#22c55e', ON: '#f59e0b' };
@@ -31,8 +32,10 @@ export default function LogbookPage() {
   const [events,   setEvents]   = useState([]);
   const [daySession, setDaySession] = useState(null);
   const [loading,  setLoading]  = useState(false);
-  const [certifying, setCertifying] = useState(false);
-  const [error,    setError]    = useState(null);
+  const [certifying,    setCertifying]    = useState(false);
+  const [showSigModal,  setShowSigModal]  = useState(false);
+  const [certSig,       setCertSig]       = useState(null);
+  const [error,         setError]         = useState(null);
 
   // Load events for displayed date
   useEffect(() => {
@@ -80,18 +83,24 @@ export default function LogbookPage() {
 
   const isToday = date === new Date().toISOString().slice(0, 10);
 
-  const handleCertify = async () => {
+  const handleCertify = () => {
     if (!daySession) return;
+    setCertSig(null);
+    setShowSigModal(true);
+  };
+
+  const confirmCertify = async () => {
+    if (!certSig) return;
     setCertifying(true);
+    setShowSigModal(false);
     try {
-      // Simple text signature for now (canvas in step 2.6)
-      const sig = `Certified by driver on ${new Date().toISOString()}`;
-      await hosAPI.certifySession(daySession.id, sig);
+      await hosAPI.certifySession(daySession.id, certSig);
       await loadDayData();
     } catch (err) {
       setError(err.response?.data?.message || 'Certification failed');
     } finally {
       setCertifying(false);
+      setCertSig(null);
     }
   };
 
@@ -286,6 +295,67 @@ export default function LogbookPage() {
           </button>
         )}
       </div>
+
+      {/* ── Signature modal ── */}
+      {showSigModal && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex', alignItems: 'flex-end',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 480, margin: '0 auto',
+            background: '#1e293b',
+            borderRadius: '16px 16px 0 0',
+            border: '1px solid #334155',
+            padding: 20,
+          }}>
+            <h3 style={{
+              color: '#f1f5f9', fontSize: 15, fontWeight: 600,
+              marginBottom: 4,
+            }}>
+              Certify Logbook
+            </h3>
+            <p style={{ color: '#64748b', fontSize: 12, marginBottom: 16 }}>
+              Sign below to certify the accuracy of this day's records.
+              By signing, you confirm compliance with FMCSA §395.8.
+            </p>
+
+            <SignatureCanvas onSign={(sig) => setCertSig(sig)} />
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button
+                onClick={() => { setShowSigModal(false); setCertSig(null); }}
+                style={{
+                  flex: 1, padding: 12,
+                  background: 'transparent',
+                  border: '1px solid #334155',
+                  borderRadius: 10, color: '#64748b',
+                  cursor: 'pointer', fontSize: 14,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmCertify}
+                disabled={!certSig}
+                style={{
+                  flex: 2, padding: 12,
+                  background: certSig ? '#22c55e' : '#1e293b',
+                  border: certSig ? 'none' : '1px solid #334155',
+                  borderRadius: 10,
+                  color: certSig ? '#000' : '#475569',
+                  fontWeight: 700, fontSize: 14,
+                  cursor: certSig ? 'pointer' : 'not-allowed',
+                }}
+              >
+                ✓ Certify
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

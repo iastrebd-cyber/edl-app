@@ -10,7 +10,8 @@ import LoginPage       from './pages/LoginPage';
 import DashboardPage   from './pages/DashboardPage';
 import LogbookPage     from './pages/LogbookPage';
 import DVIRPage        from './pages/DVIRPage';
-import DOTTransferPage from './pages/DOTTransferPage';   // ← 2.7
+import DOTTransferPage  from './pages/DOTTransferPage';
+import ViolationsPage  from './pages/ViolationsPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -48,7 +49,7 @@ function AppRoutes() {
       } />
 
       <Route path="/violations" element={
-        <PrivateRoute><div style={{color:'#fff',padding:20}}>Violations — coming soon</div></PrivateRoute>
+        <PrivateRoute><ViolationsPage /></PrivateRoute>
       } />
 
       <Route path="*" element={<Navigate to="/" replace />} />
