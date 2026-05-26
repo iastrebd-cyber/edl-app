@@ -87,6 +87,7 @@ app.use('/api/sessions',     sessionsRoutes);
 app.use('/api/violations',   violationsRoutes);
 app.use('/api/dvir',         require('./api/routes/dvir.routes'));
 app.use('/api/carriers',     require('./api/routes/carriers.routes'));
+app.use('/api/ifta',         require('./api/routes/ifta.routes'));
 app.use('/api/dot-transfer', require('./api/routes/dotTransfer'));
 app.use('/api/ws',           require('./api/routes/ws.routes'));
 
